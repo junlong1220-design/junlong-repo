@@ -6,14 +6,14 @@ Create Windows VMs from an AOC template, obtain DHCP addresses, rename and reboo
 
 - Windows controller with elevated PowerShell 7.2 or later.
 - Network access to AOC, guest WinRM TCP 5985, AD and AD.
-- Golden template with VMTools, DHCP and the local `Admin` account.
+- Golden image with VMTools, DHCP and the local `Admin` account.
 - AD DNS reachable through PowerShell remoting, with the `DnsServer` module and an account authorized to delete DNS records for cleanup.
 
 Usernames and passwords are requested interactively. Do not store them in JSON. The template account is local (for example, `Admin`); the domain account can use `administrator@demo.com`; the Horizon registration account must use `DEMO\administrator`.
 
-## 1. Prepare the golden template
+## 1. Prepare the golden image
 
-Complete updates and required reboots. Sign in to the workgroup template as local `Admin`, open elevated PowerShell, and run:
+Must Complete updates and required reboots. Sign in to the workgroup template as local `Admin`, open elevated PowerShell, and run as administrator:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
@@ -155,7 +155,6 @@ Only `Count` and `Concurrency` are needed for batch scheduling. `Count: 30` crea
 
 Default concurrency is 20, with 20 or less recommended. The supported range is 1..30. For `Count: 30` and `Concurrency: 30`, each stage may use up to 30 workers, subject to platform capacity. This is a script setting, not an Arcfra API limit. Validate higher values against task queues, storage load and Windows boot times. `Concurrency: 1` uses serial execution.
 
-Remove `CloneConcurrency`, `TransferConcurrency` and `InstallConcurrency` from JSON. Old JSON values are ignored. Old command-line stage-specific arguments are no longer supported. Only `-Concurrency` overrides JSON. Removing these runtime fields does not change the current batch hash. Existing state and ownership protections remain in effect.
 
 ## Templates optimized with Omnissa OSOT
 
@@ -179,7 +178,3 @@ DNS deletion follows successful recycle verification and uses one server session
 
 ```powershell
 .\Cleanup.ps1 -StatePath .\batch-101.json -Execute
-.\Cleanup.ps1 -StatePath .\batch-101.json -Execute -Concurrency 10
-```
-
-Use `-Concurrency 1` for serial cleanup. Preserve the deployment state and cleanup receipt when upgrading. Actual speed depends on AOC task scheduling and storage capacity.
