@@ -1,0 +1,16 @@
+# Local configuration and backups
+init.json
+init.json.*
+# Deployment / cleanup state and reports
+/state*
+/batch-*
+*.cleanup.json
+*.csv
+*.log
+*.lock
+*.tmp
+*.tmp-*
+*.before-reconcile-*
+# Local artifacts
+.DS_Store
+*.zip

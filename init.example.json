@@ -1,0 +1,21 @@
+{
+  "AocUrl": "https://YOUR-AOC",
+  "AocUserSource": "LOCAL",
+  "SkipAocCertificateCheck": true,
+  "TemplateName": "windows10-simple",
+  "ClusterName": "YOUR-CLUSTER",
+  "Prefix": "VDI-",
+  "StartIndex": 1,
+  "Count": 20,
+  "CpuCount": 4,
+  "MemoryGB": 8,
+  "DomainName": "vdi-demo.com",
+  "DomainControllerIP": "192.168.1.10",
+  "OUPath": "",
+  "ConnectionServer": "192.168.1.20",
+  "AgentSourcePath": "C:\\HorizonAgent.exe",
+  "AgentFeatures": "Core,USB,RTAV",
+  "ValidateInstallerSignature": true,
+  "FullCopy": false,
+  "Concurrency": 20
+}
