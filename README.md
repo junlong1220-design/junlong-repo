@@ -4,27 +4,38 @@ Create Windows VMs from an AOC template, rename them, join them to AD, install t
 
 ## Requirements
 
-- A Windows controller running elevated PowerShell 7.2 or later
-- Network access from the controller to AOC, VM WinRM (TCP 5985), AD, and DNS
-- A Windows template with VMTools, DHCP, and the local `Admin` account
+- A Windows controller VM running elevated PowerShell 7.2 or later
+- Network access from the controller VM to AOC, VM WinRM (TCP 5985), AD, and DNS
+- A Windows template with VMTools, Cloudbase-inti, DHCP, and the local `Admin` account under Administrator group
 - PowerShell remoting access to DNS with permission to remove the related records
 
 Credentials for AOC, the template, AD, and Horizon are requested interactively. Never store passwords in JSON.
 
 ## 1. Prepare the Golden Image template
 
-Must run windows update and reboot the machines. after that, Sign in to the workgroup template as the local `Admin` account and open elevated PowerShell:
+After Windows OS installation done, Must run windows update and keep the VM widows updated and reboot the machines. Make sure local `Admin` account is created and under `administrators` group. Allow the Remote desktop connections.
+
+Make sure you upload the Horzion Agent installation file and Prepare-Template.ps1 to this Golden image VM. The recommended path is “C:\” . Then,Login the VM with local account `Admin` Open the Powershell and Run as administrator to execute below:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\Prepare-Template.ps1 -ControllerIP 192.168.1.50
 ```
 
-Replace the IP address with the controller address. Run the Sysprep command printed by the script, shut down the template, and publish it in AOC. Test one clone before starting a batch deployment.
+Please replace the `-ControllerIP` address with your Windows controller VM address. After Run the above `Prepare-Template.ps1`, Sysprep command printed by the script. Such as:
+`Run in elevated CMD next. C:\Windows\System32\Sysprep\Sysprep.exe /generalize /oobe /shutdown /unattend:"C:\ProgramData\SimpleVDI\Unattend.xml"`
+Before you cmd run below commands, you can delete the PrePare-Template.ps1 Optionally this Golden iamge VM.
 
-If you use OSOT, complete optimization and cleanup first, then reboot before running this project. Use only the Sysprep command printed by this project; do not run OSOT Generalize afterward and overwrite these settings.
+```CMD
+C:\Windows\System32\Sysprep\Sysprep.exe /generalize /oobe /shutdown /unattend:"C:\ProgramData\SimpleVDI\Unattend.xml"
+```
 
-## 2. Configure and deploy
+ shut down the template automatically, and publish it in AOC clone or convert to Template. Test one clone before starting a batch deployment.
+
+Optionally, If you use Omnissa Horizon OS Optimization Tool (OSOT), complete optimization and cleanup first, then reboot before running this project. Use only the Sysprep command printed by this project; DO NOT run OSOT Generalize afterward and overwrite these settings.
+
+## 2. Configure and deploy via Windows controller VM
+Login with your local account and run the powershell script in your Windows controller VM 
 
 ```powershell
 Copy-Item .\init.example.json .\init.json
@@ -42,6 +53,32 @@ Fill in the AOC, template/cluster, naming, AD, Connection Server, and Agent sett
 ```
 
 `AgentSourcePath` must point to an EXE directly, for example `C:\HorizonAgent.exe`. Do not install the Agent in the source template. The script installs it silently inside each clone and deletes the EXE after a successful installation.
+
+### JSON Parameter Reference
+
+| Parameter | Description |
+| --- | --- |
+| `AocUrl` | URL of the AOC management platform. |
+| `AocUserSource` | AOC user source, for example `LOCAL`. |
+| `SkipAocCertificateCheck` | Whether to skip AOC HTTPS certificate validation; use `false` in production. |
+| `TemplateName` | Name of the AOC template used for cloning. |
+| `ClusterName` | AOC cluster where the virtual machines are created. |
+| `Prefix` | Virtual machine name prefix, for example `VDI-`. |
+| `StartIndex` | Starting index for virtual machine numbering. |
+| `FullCopy` | Whether to use full clones; `false` uses linked clones, subject to AOC behavior. |
+| `Count` | Number of virtual machines to create in this batch. |
+| `Concurrency` | Number of workers per pipeline stage. Supports `1–30` and defaults to `20`. |
+| `CpuCount` | Number of vCPUs assigned to each virtual machine. |
+| `MemoryGB` | Amount of memory assigned to each virtual machine, in GB. |
+| `DomainName` | AD domain to join. |
+| `DomainControllerIP` | IP address of the domain controller. |
+| `OUPath` | OU path where AD computer accounts are created. |
+| `ConnectionServer` | Horizon Connection Server address. |
+| `AgentSourcePath` | Full path to the Horizon Agent EXE on the controller, for example `C:\HorizonAgent.exe`. Do not install the Agent in the source template. |
+| `AgentFeatures` | Comma-separated Horizon Agent features enabled during silent installation, for example `Core,USB,RTAV`. |
+| `ValidateInstallerSignature` | Whether to validate the digital signature of the Horizon Agent installer. |
+
+AOC, template, AD, and Horizon passwords are not stored in JSON; they are entered interactively at runtime.
 
 Validate first, then deploy:
 
