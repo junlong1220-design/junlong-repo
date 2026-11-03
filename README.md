@@ -14,11 +14,12 @@ Usernames and passwords are requested interactively. Do not store them in JSON. 
 ## 1. Prepare the Golden Image Template
 
 1. Install Windows through AOC and make sure the local `Admin` account exists and belongs to the `Administrators` group.
-2. Log in with the local `Admin` account, install all Windows updates, and complete any required reboots.
-3. Optional: upload and run Omnissa OS Optimization Tool (OSOT) for optimization and cleanup. Remove the installation package and reboot when finished.
-4. Upload the Horizon Agent EXE, [Prepare-Template.cmd](./Prepare-Template.cmd), and [Prepare-Template.ps1](./Prepare-Template.ps1) to the source VM, for example under `C:\`. Copy the Horizon Agent EXE to `C:\HorizonAgent.exe` but do not install it. Keep [Prepare-Template.cmd](./Prepare-Template.cmd) beside [Prepare-Template.ps1](./Prepare-Template.ps1).
-5. Double-click the [Prepare-Template.cmd](./Prepare-Template.cmd) launcher, accept the UAC prompt, and enter the local `Admin` password. Preparation runs Sysprep automatically and shuts down the VM. If an error occurs, the PowerShell window remains open for inspection.
-6. Convert the VM into an AOC VM template. Set the template name and make sure the VM Initialization Tool is installed and enabled.
+2. Install Arcfra VMTool and Arcfra Cloudbase-init Tool. See [Arcfra VMTool Guide](https://docs.arcfra.com/tools/latest/arcfra_vmtools/arcfra-vmt/4.2.0/arcfra_vmtools_overview/arcfra_vmtools_user_guide/arcfra_vmtools_user_guide_01) and [Arcfra CloudBase-init Guide](https://docs.arcfra.com/tools/latest/vm_initialization_tool/vm-initialization-tool/1.1.0/overview/cloud-init-guide/cloud-init-guide-01).
+3. Log in with the local `Admin` account, disable the windows firewalls, disable the UAC, install all Windows updates, and complete any required reboots.
+4. Optional: Upload and run Omnissa OS Optimization Tool (OSOT) for optimization and cleanup. Remove the instsallation package and reboot when finished.
+5. Upload the Horizon Agent EXE, [Prepare-Template.cmd](./Prepare-Template.cmd), and [Prepare-Template.ps1](./Prepare-Template.ps1) to the source VM, for example under `C:\`. Copy the Horizon Agent EXE to `C:\HorizonAgent.exe` but do not install it. Keep [Prepare-Template.cmd](./Prepare-Template.cmd) beside [Prepare-Template.ps1](./Prepare-Template.ps1).
+6. Double-click the [Prepare-Template.cmd](./Prepare-Template.cmd) launcher, accept the UAC prompt, and enter the local `Admin` password. Preparation runs Sysprep automatically and shuts down the VM. If an error occurs, the PowerShell window remains open for inspection.
+7. Convert the VM into an AOC VM template. Set the template name and make sure the VM Initialization Tool is installed and enabled.
 
 Alternatively, open elevated PowerShell and run:
 
