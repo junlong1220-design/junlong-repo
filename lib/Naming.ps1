@@ -1,13 +1,15 @@
 function Get-DeploymentNames {
     param([hashtable]$Config)
+    # Use the same prefix normalization as batch hashing (Config.ps1).
+    $Config=Get-NormalizedNamingConfig $Config
     $hasList=$Config.ContainsKey('Hostnames') -and $null -ne $Config.Hostnames -and @($Config.Hostnames).Count -gt 0
     $hasPrefix=$Config.ContainsKey('Prefix') -and -not [string]::IsNullOrWhiteSpace([string]$Config.Prefix)
-    if ($hasList -and $hasPrefix) {throw 'Use Prefix/StartIndex/Count OR Hostnames. Remove Hostnames when using Prefix.'}
+    if ($hasList -and $hasPrefix) {throw 'Use VMNamePrefix/StartIndex/Count OR Hostnames. Remove Hostnames when using VMNamePrefix.'}
     if ($hasList) {
         if ($Config.Hostnames -isnot [array]) {throw 'Hostnames must be a JSON array.'}
         $names=@($Config.Hostnames)
     } else {
-        if (-not $hasPrefix) {throw 'Specify Prefix and StartIndex/Count, or a Hostnames array.'}
+        if (-not $hasPrefix) {throw 'Specify VMNamePrefix and StartIndex/Count, or a Hostnames array.'}
         foreach ($key in @('StartIndex','Count')) {
             $parsed=0L
             if (-not $Config.ContainsKey($key) -or -not [long]::TryParse([string]$Config[$key],[ref]$parsed)) {throw "$key must be an integer."}

@@ -101,7 +101,7 @@ function Wait-AocTask {
                 'PAUSED' { throw "AOC task $TaskId is paused. Resolve in AOC and resume." }
                 'PENDING' { }
                 'EXECUTING' { }
-                default {throw "AOC task $TaskId returned an unrecognized status '$lastStatus'. Run Get-AocTaskDiagnostics.ps1; success was not assumed."}
+                default {throw "AOC task $TaskId returned an unrecognized status '$lastStatus'. Run diagnostics\Get-AocTaskDiagnostics.ps1; success was not assumed."}
             }
         }
         if ([datetime]::UtcNow -ge $nextNotice) {

@@ -1,9 +1,26 @@
+function Get-NormalizedNamingConfig([hashtable]$Config) {
+    # Canonicalize to the original key so renaming the setting preserves saved batch hashes.
+    $normalized=$Config.Clone()
+    if ($Config.ContainsKey('VMNamePrefix')) {
+        if ($Config.VMNamePrefix -isnot [string] -or [string]::IsNullOrWhiteSpace($Config.VMNamePrefix)) {
+            throw 'VMNamePrefix must be a non-empty string.'
+        }
+        if ($Config.ContainsKey('Prefix') -and $Config.Prefix -cne $Config.VMNamePrefix) {
+            throw 'VMNamePrefix and legacy Prefix disagree. Remove Prefix or use identical values.'
+        }
+        $normalized.Prefix=$Config.VMNamePrefix
+        $normalized.Remove('VMNamePrefix')
+    }
+    return $normalized
+}
+
 function Assert-HorizonUsername([string]$Username) {
     if ($Username -notmatch '^[^\\@\s"\r\n]+\\[^\\@\s"\r\n]+$') {
         throw 'HorizonUsername must use AD NetBIOS domain\username, not a UPN. Example: DEMO\administrator.'
     }
 }
 function Get-PublicConfigHash($Config,[switch]$IncludeDefaultIndexWidth) {
+    $Config=Get-NormalizedNamingConfig $Config
     $canonical=[ordered]@{}
     foreach ($key in @($Config.Keys | Sort-Object)) {
         if (-not $IncludeDefaultIndexWidth -and $key -eq 'IndexWidth' -and [string]$Config[$key] -eq '4') {continue}
@@ -61,6 +78,7 @@ function Test-CloneModeMigration($Config,[string]$PreviousHash) {
 }
 
 function Get-LegacyPublicConfigHash($Config) {
+    $Config=Get-NormalizedNamingConfig $Config
     $canonical=[ordered]@{}
     foreach ($key in @($Config.Keys | Sort-Object)) {
         if ($key -notmatch 'Password$') {$canonical[$key]=$Config[$key]}
@@ -68,6 +86,7 @@ function Get-LegacyPublicConfigHash($Config) {
     [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes(($canonical | ConvertTo-Json -Depth 10 -Compress))))
 }
 function Get-PreviousTimingConfigHash($Config) {
+    $Config=Get-NormalizedNamingConfig $Config
     $canonical=[ordered]@{}
     foreach ($key in @($Config.Keys | Sort-Object)) {
         if ($key -eq 'FullCopy' -and $Config[$key] -is [bool] -and $Config[$key]) {continue}
