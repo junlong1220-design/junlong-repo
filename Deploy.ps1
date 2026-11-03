@@ -274,7 +274,7 @@ try {
                 } elseif ($ReconcileConfig) {
                     Assert-BatchConfigReconciliation $State $names
                     $reconcilePending=$true
-                } else {throw 'Config changed. Run Get-BatchConfigDiagnostics.ps1 with the original StatePath. Do not delete state or recreate existing VMs.'}
+                } else {throw 'Config changed. Run diagnostics\Get-BatchConfigDiagnostics.ps1 with the original StatePath. Do not delete state or recreate existing VMs.'}
             }
         }
     }

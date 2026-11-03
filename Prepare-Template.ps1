@@ -1,13 +1,18 @@
 #requires -Version 5.1
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$ControllerIP,[string]$Locale='en-US',[string]$InputLocale='0409:00000409')
+param(
+    [string]$Locale='en-US',
+    [string]$InputLocale='0409:00000409',
+    [switch]$PrepareOnly
+)
 $ErrorActionPreference='Stop'
 $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {throw 'Run elevated.'}
 if ((Get-CimInstance Win32_ComputerSystem).PartOfDomain) {throw 'Template must be in a workgroup.'}
-$ip=$null;if (-not [Net.IPAddress]::TryParse($ControllerIP,[ref]$ip)) {throw 'ControllerIP must be an IP address.'}
-$credential=Get-Credential -UserName Admin -Message 'Local template Admin: use the same password at the deployment local administrator prompt'
-if ($credential.UserName -cne 'Admin') {throw 'Use local user Admin.'}
+$sysprep=Join-Path $env:windir 'System32\Sysprep\Sysprep.exe'
+if (-not $PrepareOnly -and -not (Test-Path -LiteralPath $sysprep -PathType Leaf)) {throw 'Sysprep.exe was not found.'}
+if (-not $PrepareOnly) {Write-Host 'This run will generalize Windows and shut down the VM when preparation succeeds. Complete updates/reboots and OSOT first.'}
+$credential=[pscredential]::new('Admin',(Read-Host 'Local Admin password (use the same password during deployment)' -AsSecureString))
 $null=Get-LocalUser Admin
 Enable-LocalUser Admin
 Set-LocalUser Admin -Password $credential.Password
@@ -77,10 +82,9 @@ Write-Host 'WinRM persisted settings/policy checks passed. Network category was 
 $null=New-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name LocalAccountTokenFilterPolicy -Value 1 -PropertyType DWord -Force
 Get-NetFirewallRule -Name 'WINRM-HTTP-In-TCP*' -ErrorAction SilentlyContinue | Disable-NetFirewallRule
 Get-NetFirewallRule -Name SimpleVDI-WinRM -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-$null=New-NetFirewallRule -Name SimpleVDI-WinRM -DisplayName 'Simple VDI WinRM controller' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5985 -RemoteAddress '__CONTROLLER__' -Profile Any
+$null=New-NetFirewallRule -Name SimpleVDI-WinRM -DisplayName 'Simple VDI WinRM' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5985 -RemoteAddress Any -Profile Any
 '@
 # Run preparation after OSOT Optimize/Finalize so later tool runs do not overwrite it.
-$bootstrap=$bootstrap.Replace('__CONTROLLER__',$ControllerIP)
 & ([scriptblock]::Create($bootstrap))
 # Prove that the configured local account can use the same WinRM endpoint as deployment.
 $probe=$null
@@ -89,7 +93,7 @@ try {
     $probe=New-PSSession -ComputerName localhost -Authentication Negotiate -Credential $probeCredential -ErrorAction Stop
     $identity=Invoke-Command -Session $probe -ScriptBlock {whoami.exe}
     Write-Host "Local WinRM credential check passed: $identity"
-} catch {throw "Template WinRM credential check failed after optimization: $($_.Exception.Message). Run Get-TemplateDiagnostics.ps1 inside this VM. Do not seal this template until the check passes."}
+} catch {throw "Template WinRM credential check failed after optimization: $($_.Exception.Message). Run diagnostics\Get-TemplateDiagnostics.ps1 inside this VM. Do not seal this template until the check passes."}
 finally {if ($probe) {Remove-PSSession $probe};$probeCredential=$null}
 Write-Host "For the first clone connection, the local credential prompt can use $env:COMPUTERNAME\Admin."
 # Native Windows startup task restores remoting after Sysprep; no Cloudbase or credentials in the task.
@@ -125,5 +129,26 @@ $password=$null;$xml=$null
 Write-Host 'Template preparation and first-logon optimization completed.'
 Write-Host 'Validate one generalized clone before publishing the production template.'
 Write-Host 'Prepared. Answer file contains the local bootstrap password; directory is restricted to SYSTEM/Administrators.'
-Write-Host "Run in elevated CMD next, after all updates/reboots complete:"
-Write-Host "C:\Windows\System32\Sysprep\Sysprep.exe /generalize /oobe /shutdown /unattend:`"$path`""
+if ($PrepareOnly) {
+    Write-Host 'PrepareOnly: Sysprep was not started. Rerun without -PrepareOnly when ready to seal.'
+    return
+}
+# Execute directly; a separate CMD window is unnecessary.
+Write-Host 'Starting Sysprep. After shutdown, keep this VM powered off and publish the template in AOC.'
+# Finish generalization without shutting down yet so cleanup can run after success.
+$process=Start-Process -FilePath $sysprep -ArgumentList "/generalize /oobe /quit /unattend:`"$path`"" -PassThru -Wait
+if ($process.ExitCode -ne 0) {
+    throw "Sysprep failed (exit code $($process.ExitCode)). Inspect $env:windir\System32\Sysprep\Panther\setuperr.log before retrying."
+}
+try {
+    # Exact paths only: remove this running copy and its companion launcher.
+    # Retain the answer file and remoting startup task required by the clones.
+    $launcher=Join-Path $PSScriptRoot 'Prepare-Template.cmd'
+    if (Test-Path -LiteralPath $launcher -PathType Leaf) {Remove-Item -LiteralPath $launcher -Force -ErrorAction Stop}
+    Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction Stop
+} catch {
+    throw "Sysprep succeeded, but preparation-file cleanup failed: $($_.Exception.Message). Delete the remaining preparation files manually, then shut down Windows. Do not rerun preparation or publish until cleanup is complete."
+}
+Write-Host 'Sysprep succeeded and preparation files were removed. Shutting down now.'
+& "$env:windir\System32\shutdown.exe" /s /t 0
+if ($LASTEXITCODE -ne 0) {throw 'Sysprep and cleanup succeeded, but shutdown failed. Shut down Windows manually and keep the sealed VM powered off.'}
