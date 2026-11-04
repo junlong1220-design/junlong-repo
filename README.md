@@ -59,7 +59,7 @@ The example creates 30 VMs. A single `Concurrency: 20` setting limits each pipel
 
 This example is a fragment of `init.json`. Names start at `vm-0001`. Numeric suffixes use at least four digits and grow automatically. Complete Windows hostnames must fit within 15 characters. Use JSON boolean `false` for non-full-copy clones.
 
-`VMNamePrefix` is shared by the AOC VM display name and the Windows hostname: `VDI-` with `StartIndex: 1` generates `VDI-0001`, `VDI-0002`, and so on. The old `Prefix` key remains supported. Renaming only the key to `VMNamePrefix` with the same value preserves saved batch compatibility; changing the prefix value changes VM names. If both keys are present, their values must match exactly. Use either prefix-based naming or an explicit `Hostnames` array.
+`VMNamePrefix` is shared by the AOC VM display name and the Windows hostname: `VDI-` with `StartIndex: 1` generates `VDI-0001`, `VDI-0002`, and so on. Below is more details about parameter configuration:
 
 | Setting | Meaning |
 |---|---|
@@ -69,7 +69,7 @@ This example is a fragment of `init.json`. Names start at `vm-0001`. Numeric suf
 | `TemplateName` | Name of the prepared Windows VM template in AOC |
 | `ClusterName` | Name of the target AOC cluster where the VMs will be created |
 | `VMNamePrefix` | Shared prefix for the AOC VM display name and Windows hostname; followed by the numeric index |
-| `FullCopy` | Whether to use full-copy cloning; `true` creates independent full copies, while `false` uses linked-clone behavior where supported |
+| `FullCopy` | Whether to use full-copy cloning; `true` creates independent full copies, while `false` uses fast-clone behavior where supported |
 | `StartIndex` | Starting number for VM naming; `1` generates the first VM as `vm-0001` |
 | `Count` | Total VMs in the batch |
 | `Concurrency` | Unified per-stage worker limit; default 20, recommended 20 or less, supported range 1..30 |
@@ -78,7 +78,7 @@ This example is a fragment of `init.json`. Names start at `vm-0001`. Numeric suf
 | `DomainName` | Active Directory domain that each VM joins, such as `vdi-demo.com` |
 | `DomainControllerIP` | IP address of the domain controller/DNS server used for DNS operations and domain joining |
 | `OUPath` | Optional distinguished name of the AD organizational unit for new computer accounts, such as `OU=VDI,DC=vdi-demo,DC=com` |
-| `ConnectionServer` | Hostname or IP address of the Horizon Connection Server used for Agent registration |
+| `ConnectionServer` | FQDN or IP address of the Horizon Connection Server used for Agent registration |
 | `AgentSourcePath` | Path inside the golden template to the Horizon Agent EXE; it must be directly under `C:\`, for example `C:\HorizonAgent.exe` |
 | `AgentFeatures` | Comma-separated Horizon Agent feature list passed to the installer, such as `Core,USB,RTAV` |
 | `ValidateInstallerSignature` | When `true`, verifies the Horizon Agent installer signature before installation |
@@ -86,12 +86,13 @@ This example is a fragment of `init.json`. Names start at `vm-0001`. Numeric suf
 
 Validate, then deploy:
 
-`batch-101.json` is the deployment state file for this batch. The script creates it to record the VM names and IDs, IP addresses, current workflow phase, task results and verification status. Keeping this file allows a failed or interrupted deployment to resume safely, and it also gives `Cleanup.ps1` the exact batch scope to preview or remove. The CSV report generated next to it is for review; the JSON state file is the source of truth for resume and cleanup.
 
 ```powershell
 .\Deploy.ps1 -ConfigPath .\init.json -StatePath .\batch-101.json -ValidateOnly
 .\Deploy.ps1 -ConfigPath .\init.json -StatePath .\batch-101.json
 ```
+
+`batch-101.json` is the deployment state file for this batch. The script creates it to record the VM names and IDs, IP addresses, current workflow phase, task results and verification status. Keeping this file allows a failed or interrupted deployment to resume safely, and it also gives `Cleanup.ps1` the exact batch scope to preview or remove. The CSV report generated next to it is for review; the JSON state file is the source of truth for resume and cleanup.
 
 Enter AOC, template local administrator, AD, and Horizon credentials when prompted. Prompts run once per invocation, before parallel workers start. For an existing batch, keep usernames and their format consistent. Validation does not create guests or prove the full template workflow.
 
@@ -178,7 +179,7 @@ Configuration reconciliation is available through `-ReconcileConfig -ValidateOnl
 
 ## Preloaded Agent installer
 
-Before sealing the golden template, copy the Horizon Agent EXE to `C:\HorizonAgent.exe` (or another EXE directly under `C:\`). Do not install it in the source image. Set `AgentSourcePath` in `init.json` to `"C:\\HorizonAgent.exe"`. This path now refers to the guest, not the controller. UNC/network installer transfer is no longer used. The installer remains on the source template for future clones.
+Before sealing the golden template, copy the Horizon Agent EXE to `C:\HorizonAgent.exe` (or another EXE directly under `C:\`). Do not install it in the source image. Set `AgentSourcePath` in `init.json` to `"C:\\HorizonAgent.exe"`. 
 
 After domain join, the script uses the domain remote session to run the preloaded EXE silently, without a separate installation concurrency limit. Signature validation runs inside each VM. After successful installation, reboot and `wsnm` service verification, the script permanently deletes exactly that EXE and removes `C:\$Recycle.Bin` for all local profiles. Windows recreates the recycle bin. This clears all C: recycled items, not just the installer. Installation failures retain the package for troubleshooting. A cleanup failure keeps the VM incomplete and reports the error, so the same state can be resumed without reinstalling a successfully receipted Agent. Do not remove the Windows Installer or Omnissa InstallerCache directories.
 
@@ -189,7 +190,7 @@ Only `Count` and `Concurrency` are needed for batch scheduling. `Count: 30` crea
 Default concurrency is 20, with 20 or less recommended. The supported range is 1..30. For `Count: 30` and `Concurrency: 30`, each stage may use up to 30 workers, subject to platform capacity. This is a script setting, not an Arcfra API limit. Validate higher values against task queues, storage load and Windows boot times. `Concurrency: 1` uses serial execution.
 
 
-## Templates optimized with Omnissa OSOT
+## Templates optimized with Omnissa OS Optimization (OSOT)
 
 Official OSOT guidance separates Optimize, Generalize and Finalize. Generalize runs Sysprep and supports a custom answer file. Finalize may clear the Default profile and create local group policies. See [OSOT image workflow](https://docs.omnissa.com/Optimizing-Images-for-Horizon/building-an-image-with-osot) and [command-line operations](https://docs.omnissa.com/Optimizing-Images-for-Horizon/RunWindowsOSOptimizationToolforHorizonfromCommandLine).
 
