@@ -33,6 +33,25 @@ The script configures the local account, DHCP, WinRM bootstrap, first-logon priv
 
 The script automatically runs Sysprep with its custom answer file. After Sysprep succeeds, it deletes the running copy of `Prepare-Template.ps1` and the companion `Prepare-Template.cmd` in the same directory, then shuts down Windows. Do not rerun template preparation or publish the VM until this cleanup has completed.
 
+## Monthly Windows Update and reseal
+
+Use a maintenance VM created from the current Golden Image Template. Do not update a production clone and turn that domain-joined clone into a template.
+
+1. Convert or clone the current Golden Image Template to a maintenance VM in AOC.
+2. Start the maintenance VM, complete Windows Update and all required reboots.
+3. If the VM is domain-joined, remove it from the domain and reboot. The maintenance VM must be in a workgroup before resealing.
+4. Copy [Maintenance-Reseal.ps1](./Maintenance-Reseal.ps1) and [Maintenance-Reseal.cmd](./Maintenance-Reseal.cmd) to the maintenance VM, keep them in the same directory, and double-click the CMD launcher after Windows Update has finished:
+
+   ```powershell
+   .\Maintenance-Reseal.cmd
+   ```
+
+   The CMD launcher requests administrator permission and starts PowerShell with temporary execution-policy bypass. The script reuses `C:\ProgramData\SimpleVDI\Unattend.xml`, checks for a pending reboot, runs Sysprep generalization, removes both `Maintenance-Reseal.ps1` and `Maintenance-Reseal.cmd`, and shuts down the VM. It does not rerun the original template preparation, OSOT, Horizon Agent installation, or the original CMD launcher.
+
+5. Keep the VM powered off and convert it to a new AOC VM template. Use a new version/name until a test clone passes validation, then make it the production template.
+
+The AOC VM-to-template conversion is still an AOC console/API operation; this repository does not currently contain that endpoint. Sysprep cannot be skipped when creating a reusable Windows template.
+
 
 ## 2. Configure and deploy
 
